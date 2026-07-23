@@ -4,6 +4,7 @@ local M       = {}
 local FRAME_NAME  = "vehicle_deployer_frame"
 local VEH_PREFIX  = "vd_vbtn_"
 local FUEL_PREFIX = "vd_fbtn_"
+local AMMO_PREFIX = "vd_abtn_"
 
 local function populate_vehicle_buttons(flow, vehicles, selected)
   for _, v in ipairs(vehicles) do
@@ -22,7 +23,7 @@ end
 local function populate_fuel_buttons(flow, fuels, selected)
   flow.clear()
   if #fuels == 0 then
-    flow.add({type = "label", caption = "No fuel required, or none found in inventory."})
+    flow.add({type = "label", caption = "No fuel required, or none found."})
     return
   end
   for _, f in ipairs(fuels) do
@@ -35,6 +36,25 @@ local function populate_fuel_buttons(flow, fuels, selected)
       style   = "slot_button",
     })
     btn.toggled = (f.name == selected)
+  end
+end
+
+local function populate_ammo_buttons(flow, ammos, selected)
+  flow.clear()
+  if #ammos == 0 then
+    flow.add({type = "label", caption = "No weapons/ammo required, or none found."})
+    return
+  end
+  for _, a in ipairs(ammos) do
+    local btn = flow.add({
+      type    = "sprite-button",
+      name    = AMMO_PREFIX .. a.name,
+      sprite  = "item/" .. a.name,
+      number  = a.count,
+      tooltip = {"item-name." .. a.name},
+      style   = "slot_button",
+    })
+    btn.toggled = (a.name == selected)
   end
 end
 
@@ -58,9 +78,14 @@ function M.open(player)
 
   local ent_name = prototypes.item[pd.selected_vehicle].place_result.name
   local fuels    = helpers.get_fuels_for_vehicle(player, ent_name)
+  local ammos    = helpers.get_ammo_for_vehicle(player, ent_name)
 
   if not helpers.has_fuel_in_list(fuels, pd.selected_fuel) then
     pd.selected_fuel = #fuels > 0 and fuels[1].name or nil
+  end
+
+  if not helpers.has_fuel_in_list(ammos, pd.selected_ammo) then
+    pd.selected_ammo = #ammos > 0 and ammos[1].name or nil
   end
 
   local frame = player.gui.screen.add({
@@ -93,7 +118,19 @@ function M.open(player)
 
   local sep2 = frame.add({type = "line"})
   sep2.style.top_margin    = 6
-  sep2.style.bottom_margin = 2
+  sep2.style.bottom_margin = 4
+
+  local ammo_hdr = frame.add({type = "label", caption = "Select Ammo"})
+  ammo_hdr.style.font         = "default-bold"
+  ammo_hdr.style.bottom_margin = 4
+
+  local ammo_flow = frame.add({type = "flow", name = "vd_ammo_flow", direction = "horizontal"})
+  ammo_flow.style.horizontal_spacing = 4
+  populate_ammo_buttons(ammo_flow, ammos, pd.selected_ammo)
+
+  local sep3 = frame.add({type = "line"})
+  sep3.style.top_margin    = 6
+  sep3.style.bottom_margin = 2
 
   frame.add({
     type    = "label",
@@ -137,12 +174,18 @@ function M.on_vehicle_selected(player, vehicle_name)
 
   local ent_name = prototypes.item[vehicle_name].place_result.name
   local fuels    = helpers.get_fuels_for_vehicle(player, ent_name)
+  local ammos    = helpers.get_ammo_for_vehicle(player, ent_name)
 
   if not helpers.has_fuel_in_list(fuels, pd.selected_fuel) then
     pd.selected_fuel = #fuels > 0 and fuels[1].name or nil
   end
 
+  if not helpers.has_fuel_in_list(ammos, pd.selected_ammo) then
+    pd.selected_ammo = #ammos > 0 and ammos[1].name or nil
+  end
+
   populate_fuel_buttons(frame.vd_fuel_flow, fuels, pd.selected_fuel)
+  populate_ammo_buttons(frame.vd_ammo_flow, ammos, pd.selected_ammo)
 end
 
 function M.on_fuel_selected(player, fuel_name)
@@ -155,6 +198,20 @@ function M.on_fuel_selected(player, fuel_name)
   for _, child in pairs(frame.vd_fuel_flow.children) do
     if string.sub(child.name, 1, #FUEL_PREFIX) == FUEL_PREFIX then
       child.toggled = (string.sub(child.name, #FUEL_PREFIX + 1) == fuel_name)
+    end
+  end
+end
+
+function M.on_ammo_selected(player, ammo_name)
+  local pd = helpers.get_player_data(player.index)
+  pd.selected_ammo = ammo_name
+
+  local frame = player.gui.screen[FRAME_NAME]
+  if not (frame and frame.valid) then return end
+
+  for _, child in pairs(frame.vd_ammo_flow.children) do
+    if string.sub(child.name, 1, #AMMO_PREFIX) == AMMO_PREFIX then
+      child.toggled = (string.sub(child.name, #AMMO_PREFIX + 1) == ammo_name)
     end
   end
 end

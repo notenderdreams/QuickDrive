@@ -18,6 +18,12 @@ local function try_drain(veh, define, player_inv)
   if ok and inv then drain_inventory(inv, player_inv) end
 end
 
+local function try_get_inventory(veh, define)
+  local ok, inv = pcall(function() return veh.get_inventory(define) end)
+  if ok and inv then return inv end
+  return nil
+end
+
 function M.deploy(player, vehicle_item, fuel_item)
   local inv = player.get_main_inventory()
   if not inv then
@@ -66,6 +72,27 @@ function M.deploy(player, vehicle_item, fuel_item)
       if available > 0 then
         local inserted = fuel_inv.insert({name = fuel_item, count = available})
         if inserted > 0 then inv.remove({name = fuel_item, count = inserted}) end
+      end
+    end
+  end
+
+  -- Auto-load Ammo
+  local ammo_inv = try_get_inventory(vehicle, defines.inventory.car_ammo) or try_get_inventory(vehicle, defines.inventory.spider_ammo)
+  if ammo_inv then
+    local pd = helpers.get_player_data(player.index)
+    local selected_ammo = pd.selected_ammo
+    if selected_ammo and selected_ammo ~= "" and inv.get_item_count(selected_ammo) > 0 then
+      local avail = inv.get_item_count(selected_ammo)
+      local inserted = ammo_inv.insert({name = selected_ammo, count = avail})
+      if inserted > 0 then inv.remove({name = selected_ammo, count = inserted}) end
+    else
+      local ammo_list = helpers.get_ammo_for_vehicle(player, entity_name)
+      for _, ammo in ipairs(ammo_list) do
+        local avail = inv.get_item_count(ammo.name)
+        if avail > 0 then
+          local inserted = ammo_inv.insert({name = ammo.name, count = avail})
+          if inserted > 0 then inv.remove({name = ammo.name, count = inserted}) end
+        end
       end
     end
   end

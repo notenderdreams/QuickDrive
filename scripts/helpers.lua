@@ -77,6 +77,28 @@ function M.get_fuels_for_vehicle(player, vehicle_entity_name)
   return results
 end
 
+function M.get_ammo_for_vehicle(player, vehicle_entity_name)
+  local results, seen = {}, {}
+  local inv = player.get_main_inventory()
+  if not inv then return results end
+
+  for i = 1, #inv do
+    local stack = inv[i]
+    if stack.valid_for_read and not seen[stack.name] then
+      local item_proto = prototypes.item[stack.name]
+      if item_proto and item_proto.type == "ammo" then
+        seen[stack.name] = true
+        table.insert(results, {
+          name  = stack.name,
+          count = inv.get_item_count(stack.name),
+        })
+      end
+    end
+  end
+
+  return results
+end
+
 function M.has_vehicle(player, vehicle_name)
   local inv = player.get_main_inventory()
   return inv ~= nil and inv.get_item_count(vehicle_name) > 0

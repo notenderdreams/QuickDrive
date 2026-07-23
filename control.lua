@@ -58,6 +58,9 @@ script.on_event(defines.events.on_gui_click, function(event)
   elseif string.sub(name, 1, #"vd_fbtn_") == "vd_fbtn_" then
     gui.on_fuel_selected(player, string.sub(name, #"vd_fbtn_" + 1))
 
+  elseif string.sub(name, 1, #"vd_abtn_") == "vd_abtn_" then
+    gui.on_ammo_selected(player, string.sub(name, #"vd_abtn_" + 1))
+
   elseif name == "vd_deploy_btn" then
     local pd = helpers.get_player_data(player.index)
     if pd.selected_vehicle then
