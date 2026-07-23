@@ -102,6 +102,18 @@ function M.deploy(player, vehicle_item, fuel_item)
     vehicle.set_driver(player.character)
   end
 
+  -- Initial Speed Boost / Auto Launch in player orientation direction
+  if vehicle.speed ~= nil then
+    vehicle.speed = 0.15
+  end
+
+  -- Auto Headlights: Turn headlights on if deploying during dark hours / night
+  if surface.darkness and surface.darkness > 0.3 then
+    if vehicle.vehicle_logistics_state ~= nil then
+      pcall(function() vehicle.enable_headlights = true end)
+    end
+  end
+
   local pd = helpers.get_player_data(player.index)
   pd.deployed_vehicle_unit_number = vehicle.unit_number
   pd.deployed_vehicle_item        = vehicle_item

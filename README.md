@@ -28,8 +28,11 @@ QuickDrive lets you quickly place a vehicle from your inventory, load it with yo
 
 ## Features
 
-- **Automatic Fueling:** Automatically pulls matching fuel from your inventory and loads as much as will fit into the vehicle's burner slot.
-- **Support for All Vehicles:** Compatible with standard Factorio vehicles (Cars, Tanks, Spidertrons) as well as electric/no-fuel vehicles.
+- **Automatic Fueling & Ammo:** Automatically loads your selected fuel and compatible ammo directly from inventory upon deployment.
+- **Persistent Direction:** Inherits your character's exact orientation when entering and exiting vehicles.
+- **Auto Launch / Initial Speed Boost:** Gives the vehicle an immediate forward speed burst on deployment.
+- **Auto Headlights:** Automatically switches headlights on when deploying at night or in pitch darkness.
+- **Support for All Vehicles:** Compatible with standard Factorio vehicles (Cars, Tanks, Spidertrons) as well as modded/electric vehicles.
 - **Cargo-Safe Undeploy:** Safely recovers all contents (fuel, ammo, trunk cargo) before placing items back into your inventory.
 - **Smart Tracking:** Only packs up vehicles that were deployed via QuickDrive, leaving player-built or automated map vehicles untouched.
 
