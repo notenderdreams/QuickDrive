@@ -1,0 +1,164 @@
+local helpers = require("scripts.helpers")
+local M       = {}
+
+local FRAME_NAME  = "vehicle_deployer_frame"
+local VEH_PREFIX  = "vd_vbtn_"
+local FUEL_PREFIX = "vd_fbtn_"
+
+local function populate_vehicle_buttons(flow, vehicles, selected)
+  for _, v in ipairs(vehicles) do
+    local btn = flow.add({
+      type    = "sprite-button",
+      name    = VEH_PREFIX .. v.name,
+      sprite  = "item/" .. v.name,
+      number  = v.count,
+      tooltip = {"item-name." .. v.name},
+      style   = "slot_button",
+    })
+    btn.toggled = (v.name == selected)
+  end
+end
+
+local function populate_fuel_buttons(flow, fuels, selected)
+  flow.clear()
+  if #fuels == 0 then
+    flow.add({type = "label", caption = "No fuel required, or none found in inventory."})
+    return
+  end
+  for _, f in ipairs(fuels) do
+    local btn = flow.add({
+      type    = "sprite-button",
+      name    = FUEL_PREFIX .. f.name,
+      sprite  = "item/" .. f.name,
+      number  = f.count,
+      tooltip = {"item-name." .. f.name},
+      style   = "slot_button",
+    })
+    btn.toggled = (f.name == selected)
+  end
+end
+
+function M.open(player)
+  if player.gui.screen[FRAME_NAME] then
+    M.close(player)
+    return
+  end
+
+  local pd       = helpers.get_player_data(player.index)
+  local vehicles = helpers.get_vehicles_in_inventory(player)
+
+  if #vehicles == 0 then
+    player.print("[QuickDrive] No deployable vehicles found in your inventory!")
+    return
+  end
+
+  if not pd.selected_vehicle or not helpers.has_vehicle(player, pd.selected_vehicle) then
+    pd.selected_vehicle = vehicles[1].name
+  end
+
+  local ent_name = prototypes.item[pd.selected_vehicle].place_result.name
+  local fuels    = helpers.get_fuels_for_vehicle(player, ent_name)
+
+  if not helpers.has_fuel_in_list(fuels, pd.selected_fuel) then
+    pd.selected_fuel = #fuels > 0 and fuels[1].name or nil
+  end
+
+  local frame = player.gui.screen.add({
+    type      = "frame",
+    name      = FRAME_NAME,
+    caption   = {"", "[item=car] QuickDrive"},
+    direction = "vertical",
+  })
+  frame.style.minimal_width = 340
+
+  local veh_hdr = frame.add({type = "label", caption = "Select Vehicle"})
+  veh_hdr.style.font         = "default-bold"
+  veh_hdr.style.bottom_margin = 4
+
+  local veh_flow = frame.add({type = "flow", name = "vd_vehicle_flow", direction = "horizontal"})
+  veh_flow.style.horizontal_spacing = 4
+  populate_vehicle_buttons(veh_flow, vehicles, pd.selected_vehicle)
+
+  local sep1 = frame.add({type = "line"})
+  sep1.style.top_margin    = 6
+  sep1.style.bottom_margin = 4
+
+  local fuel_hdr = frame.add({type = "label", caption = "Select Fuel"})
+  fuel_hdr.style.font         = "default-bold"
+  fuel_hdr.style.bottom_margin = 4
+
+  local fuel_flow = frame.add({type = "flow", name = "vd_fuel_flow", direction = "horizontal"})
+  fuel_flow.style.horizontal_spacing = 4
+  populate_fuel_buttons(fuel_flow, fuels, pd.selected_fuel)
+
+  local sep2 = frame.add({type = "line"})
+  sep2.style.top_margin    = 6
+  sep2.style.bottom_margin = 2
+
+  frame.add({
+    type    = "label",
+    caption = "Shift+Enter to deploy  ·  Esc to cancel",
+  }).style.font = "default-semibold"
+
+  local btn_row = frame.add({type = "flow", direction = "horizontal"})
+  btn_row.style.top_margin       = 8
+  btn_row.style.horizontal_align = "right"
+
+  btn_row.add({type = "empty-widget"}).style.horizontally_stretchable = true
+  btn_row.add({type = "button", name = "vd_deploy_btn", caption = "Deploy", style = "confirm_button"})
+  btn_row.add({type = "button", name = "vd_cancel_btn", caption = "Cancel", style = "back_button"})
+
+  frame.force_auto_center()
+  player.opened = frame
+end
+
+function M.close(player)
+  local f = player.gui.screen[FRAME_NAME]
+  if f and f.valid then f.destroy() end
+end
+
+function M.is_open(player)
+  local f = player.gui.screen[FRAME_NAME]
+  return f ~= nil and f.valid
+end
+
+function M.on_vehicle_selected(player, vehicle_name)
+  local pd = helpers.get_player_data(player.index)
+  pd.selected_vehicle = vehicle_name
+
+  local frame = player.gui.screen[FRAME_NAME]
+  if not (frame and frame.valid) then return end
+
+  for _, child in pairs(frame.vd_vehicle_flow.children) do
+    if string.sub(child.name, 1, #VEH_PREFIX) == VEH_PREFIX then
+      child.toggled = (string.sub(child.name, #VEH_PREFIX + 1) == vehicle_name)
+    end
+  end
+
+  local ent_name = prototypes.item[vehicle_name].place_result.name
+  local fuels    = helpers.get_fuels_for_vehicle(player, ent_name)
+
+  if not helpers.has_fuel_in_list(fuels, pd.selected_fuel) then
+    pd.selected_fuel = #fuels > 0 and fuels[1].name or nil
+  end
+
+  populate_fuel_buttons(frame.vd_fuel_flow, fuels, pd.selected_fuel)
+end
+
+function M.on_fuel_selected(player, fuel_name)
+  local pd = helpers.get_player_data(player.index)
+  pd.selected_fuel = fuel_name
+
+  local frame = player.gui.screen[FRAME_NAME]
+  if not (frame and frame.valid) then return end
+
+  for _, child in pairs(frame.vd_fuel_flow.children) do
+    if string.sub(child.name, 1, #FUEL_PREFIX) == FUEL_PREFIX then
+      child.toggled = (string.sub(child.name, #FUEL_PREFIX + 1) == fuel_name)
+    end
+  end
+end
+
+M.FRAME_NAME = FRAME_NAME
+
+return M

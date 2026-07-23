@@ -1,0 +1,9 @@
+{
+  "name": "quick-drive",
+  "version": "0.1.0",
+  "title": "QuickDrive",
+  "author": "notenderdreams",
+  "factorio_version": "2.0",
+  "dependencies": ["base >= 2.0.0"],
+  "description": "QuickDrive: deploy vehicles from your inventory, load fuel, and enter them instantly. Ctrl+Shift+V to configure. Shift+Enter to deploy or pack up."
+}
