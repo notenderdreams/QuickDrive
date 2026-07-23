@@ -71,6 +71,7 @@ function M.deploy(player, vehicle_item, fuel_item)
   end
 
   if player.character and player.character.valid then
+    vehicle.orientation = player.character.orientation
     vehicle.set_driver(player.character)
   end
 
@@ -91,7 +92,13 @@ function M.undeploy(player)
   local inv = player.get_main_inventory()
   if not inv then return false end
 
+  local veh_orientation = vehicle.orientation
+
   vehicle.set_driver(nil)
+
+  if player.character and player.character.valid then
+    player.character.orientation = veh_orientation
+  end
 
   drain_inventory(vehicle.get_fuel_inventory(), inv)
   try_drain(vehicle, defines.inventory.car_trunk,             inv)
