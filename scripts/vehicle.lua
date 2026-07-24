@@ -109,9 +109,7 @@ function M.deploy(player, vehicle_item, fuel_item)
 
   -- Auto Headlights: Turn headlights on if deploying during dark hours / night
   if surface.darkness and surface.darkness > 0.3 then
-    if vehicle.vehicle_logistics_state ~= nil then
-      pcall(function() vehicle.enable_headlights = true end)
-    end
+    pcall(function() vehicle.enable_headlights = true end)
   end
 
   local pd = helpers.get_player_data(player.index)
