@@ -11,9 +11,15 @@ function M.get_player_data(player_index)
     storage.players[player_index] = {
       selected_vehicle             = nil,
       selected_fuel                = nil,
+      selected_ammo                = nil,
       deployed_vehicle_unit_number = nil,
       deployed_vehicle_item        = nil,
+      presets                      = {},
+      active_preset                = nil,
     }
+  end
+  if not storage.players[player_index].presets then
+    storage.players[player_index].presets = {}
   end
   return storage.players[player_index]
 end

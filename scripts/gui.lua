@@ -7,6 +7,7 @@ local FUEL_PREFIX = "vd_fbtn_"
 local AMMO_PREFIX = "vd_abtn_"
 
 local function populate_vehicle_buttons(flow, vehicles, selected)
+  flow.clear()
   for _, v in ipairs(vehicles) do
     local btn = flow.add({
       type    = "sprite-button",
@@ -58,6 +59,22 @@ local function populate_ammo_buttons(flow, ammos, selected)
   end
 end
 
+local function update_preset_dropdown(frame, pd)
+  local dropdown = frame.vd_preset_flow and frame.vd_preset_flow.vd_preset_dropdown
+  if not (dropdown and dropdown.valid) then return end
+
+  local items = {"(Custom / None)"}
+  local selected_index = 1
+  for i, preset in ipairs(pd.presets) do
+    table.insert(items, preset.name)
+    if pd.active_preset == preset.name then
+      selected_index = i + 1
+    end
+  end
+  dropdown.items = items
+  dropdown.selected_index = selected_index
+end
+
 function M.open(player)
   if player.gui.screen[FRAME_NAME] then
     M.close(player)
@@ -95,6 +112,44 @@ function M.open(player)
     direction = "vertical",
   })
   frame.style.minimal_width = 340
+
+  -- Presets Header & Controls
+  local preset_flow = frame.add({type = "flow", name = "vd_preset_flow", direction = "horizontal"})
+  preset_flow.style.vertical_align = "center"
+  preset_flow.style.bottom_margin = 6
+  
+  local preset_lbl = preset_flow.add({type = "label", caption = "Preset:"})
+  preset_lbl.style.font = "default-bold"
+  preset_lbl.style.right_margin = 6
+
+  local dropdown = preset_flow.add({
+    type = "drop-down",
+    name = "vd_preset_dropdown",
+    items = {"(Custom / None)"},
+    selected_index = 1,
+  })
+
+  preset_flow.add({
+    type = "button",
+    name = "vd_save_preset_btn",
+    caption = "Save Preset",
+    tooltip = "Save current Vehicle, Fuel, and Ammo selection as a preset",
+    style = "tool_button",
+  })
+
+  preset_flow.add({
+    type = "button",
+    name = "vd_delete_preset_btn",
+    caption = "Delete",
+    tooltip = "Delete selected preset",
+    style = "tool_button_red",
+  })
+
+  update_preset_dropdown(frame, pd)
+
+  local sep0 = frame.add({type = "line"})
+  sep0.style.top_margin    = 2
+  sep0.style.bottom_margin = 4
 
   local veh_hdr = frame.add({type = "label", caption = "Select Vehicle"})
   veh_hdr.style.font         = "default-bold"
@@ -159,6 +214,78 @@ function M.is_open(player)
   return f ~= nil and f.valid
 end
 
+function M.on_preset_selected(player, selected_index)
+  local pd = helpers.get_player_data(player.index)
+  if selected_index <= 1 then
+    pd.active_preset = nil
+    return
+  end
+
+  local preset = pd.presets[selected_index - 1]
+  if not preset then return end
+
+  pd.active_preset = preset.name
+  if preset.vehicle then
+    M.on_vehicle_selected(player, preset.vehicle)
+  end
+  if preset.fuel then
+    M.on_fuel_selected(player, preset.fuel)
+  end
+  if preset.ammo then
+    M.on_ammo_selected(player, preset.ammo)
+  end
+end
+
+function M.save_current_as_preset(player)
+  local pd = helpers.get_player_data(player.index)
+  if not pd.selected_vehicle then
+    player.print("[QuickDrive] Select a vehicle before saving a preset.")
+    return
+  end
+
+  local veh_proto = prototypes.item[pd.selected_vehicle]
+  local name = veh_proto and veh_proto.localised_name or pd.selected_vehicle
+  local preset_name = "Preset " .. (#pd.presets + 1) .. " (" .. pd.selected_vehicle .. ")"
+
+  table.insert(pd.presets, {
+    name = preset_name,
+    vehicle = pd.selected_vehicle,
+    fuel = pd.selected_fuel,
+    ammo = pd.selected_ammo,
+  })
+
+  pd.active_preset = preset_name
+
+  local frame = player.gui.screen[FRAME_NAME]
+  if frame and frame.valid then
+    update_preset_dropdown(frame, pd)
+  end
+  player.print("[QuickDrive] Preset saved: " .. preset_name)
+end
+
+function M.delete_active_preset(player)
+  local pd = helpers.get_player_data(player.index)
+  if not pd.active_preset then
+    player.print("[QuickDrive] No active preset selected to delete.")
+    return
+  end
+
+  for i, p in ipairs(pd.presets) do
+    if p.name == pd.active_preset then
+      table.remove(pd.presets, i)
+      break
+    end
+  end
+
+  player.print("[QuickDrive] Deleted preset: " .. pd.active_preset)
+  pd.active_preset = nil
+
+  local frame = player.gui.screen[FRAME_NAME]
+  if frame and frame.valid then
+    update_preset_dropdown(frame, pd)
+  end
+end
+
 function M.on_vehicle_selected(player, vehicle_name)
   local pd = helpers.get_player_data(player.index)
   pd.selected_vehicle = vehicle_name
@@ -219,3 +346,4 @@ end
 M.FRAME_NAME = FRAME_NAME
 
 return M
+

@@ -61,6 +61,12 @@ script.on_event(defines.events.on_gui_click, function(event)
   elseif string.sub(name, 1, #"vd_abtn_") == "vd_abtn_" then
     gui.on_ammo_selected(player, string.sub(name, #"vd_abtn_" + 1))
 
+  elseif name == "vd_save_preset_btn" then
+    gui.save_current_as_preset(player)
+
+  elseif name == "vd_delete_preset_btn" then
+    gui.delete_active_preset(player)
+
   elseif name == "vd_deploy_btn" then
     local pd = helpers.get_player_data(player.index)
     if pd.selected_vehicle then
@@ -72,6 +78,18 @@ script.on_event(defines.events.on_gui_click, function(event)
 
   elseif name == "vd_cancel_btn" then
     gui.close(player)
+  end
+end)
+
+script.on_event(defines.events.on_gui_selection_state_changed, function(event)
+  local element = event.element
+  if not (element and element.valid) then return end
+
+  local player = game.players[event.player_index]
+  if not (player and player.valid) then return end
+
+  if element.name == "vd_preset_dropdown" then
+    gui.on_preset_selected(player, element.selected_index)
   end
 end)
 

@@ -102,9 +102,9 @@ function M.deploy(player, vehicle_item, fuel_item)
     vehicle.set_driver(player.character)
   end
 
-  -- Initial Speed Boost / Auto Launch in player orientation direction
-  if vehicle.speed ~= nil then
-    vehicle.speed = 0.15
+  -- Initial Speed Boost / Auto Launch in player orientation direction for cars
+  if vehicle.type == "car" then
+    pcall(function() vehicle.speed = 0.15 end)
   end
 
   -- Auto Headlights: Turn headlights on if deploying during dark hours / night
