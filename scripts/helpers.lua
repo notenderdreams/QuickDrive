@@ -69,8 +69,8 @@ function M.get_fuels_for_vehicle(player, vehicle_entity_name)
     local stack = inv[i]
     if stack.valid_for_read and not seen[stack.name] then
       local item_proto = prototypes.item[stack.name]
-      if item_proto and item_proto.fuel_category and
-         fuel_categories[item_proto.fuel_category] then
+      local fc = item_proto and item_proto.fuel_category
+      if fc and fuel_categories[fc] then
         seen[stack.name] = true
         table.insert(results, {
           name  = stack.name,
@@ -83,16 +83,51 @@ function M.get_fuels_for_vehicle(player, vehicle_entity_name)
   return results
 end
 
+-- Vehicle entity name to ammo item name mapping for vanilla & popular vehicles
+local HARDCODED_VEHICLE_AMMO = {
+  ["car"] = {
+    ["firearm-magazine"]           = true,
+    ["piercing-rounds-magazine"]   = true,
+    ["uranium-rounds-magazine"]    = true,
+  },
+  ["tank"] = {
+    ["cannon-shell"]               = true,
+    ["explosive-cannon-shell"]     = true,
+    ["uranium-cannon-shell"]       = true,
+    ["explosive-uranium-cannon-shell"] = true,
+    ["firearm-magazine"]           = true,
+    ["piercing-rounds-magazine"]   = true,
+    ["uranium-rounds-magazine"]    = true,
+    ["flamethrower-ammo"]          = true,
+  },
+  ["spidertron"] = {
+    ["rocket"]                     = true,
+    ["explosive-rocket"]           = true,
+    ["atomic-bomb"]                = true,
+  },
+}
+
 function M.get_ammo_for_vehicle(player, vehicle_entity_name)
   local results, seen = {}, {}
   local inv = player.get_main_inventory()
   if not inv then return results end
 
+  local allowed_map = HARDCODED_VEHICLE_AMMO[vehicle_entity_name]
+
   for i = 1, #inv do
     local stack = inv[i]
     if stack.valid_for_read and not seen[stack.name] then
-      local item_proto = prototypes.item[stack.name]
-      if item_proto and item_proto.type == "ammo" then
+      local is_valid = false
+      if allowed_map then
+        is_valid = allowed_map[stack.name] == true
+      else
+        local item_proto = prototypes.item[stack.name]
+        if item_proto and item_proto.type == "ammo" then
+          is_valid = true
+        end
+      end
+
+      if is_valid then
         seen[stack.name] = true
         table.insert(results, {
           name  = stack.name,
@@ -110,12 +145,14 @@ function M.has_vehicle(player, vehicle_name)
   return inv ~= nil and inv.get_item_count(vehicle_name) > 0
 end
 
-function M.has_fuel_in_list(fuels, fuel_name)
-  if not fuel_name then return false end
-  for _, f in ipairs(fuels) do
-    if f.name == fuel_name then return true end
+function M.has_item_in_list(list, item_name)
+  if not item_name then return false end
+  for _, item in ipairs(list) do
+    if item.name == item_name then return true end
   end
   return false
 end
+
+M.has_fuel_in_list = M.has_item_in_list
 
 return M
