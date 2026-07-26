@@ -1,0 +1,47 @@
+name: Factorio Mod Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Extract Mod Info
+        id: mod_info
+        run: |
+          MOD_NAME=$(jq -r '.name' info.json)
+          MOD_VERSION=$(jq -r '.version' info.json)
+          echo "name=${MOD_NAME}" >> $GITHUB_OUTPUT
+          echo "version=${MOD_VERSION}" >> $GITHUB_OUTPUT
+          echo "zip_name=${MOD_NAME}_${MOD_VERSION}.zip" >> $GITHUB_OUTPUT
+          echo "dir_name=${MOD_NAME}_${MOD_VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Build Factorio Mod Zip Archive
+        run: |
+          DIR_NAME="${{ steps.mod_info.outputs.dir_name }}"
+          ZIP_NAME="${{ steps.mod_info.outputs.zip_name }}"
+          
+          mkdir -p "dist/${DIR_NAME}"
+          rsync -av --exclude='.git*' --exclude='.github' --exclude='.DS_Store' --exclude='dist' ./ "dist/${DIR_NAME}/"
+          
+          cd dist
+          zip -r "../${ZIP_NAME}" "${DIR_NAME}"
+          cd ..
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.mod_info.outputs.zip_name }}
+          name: Release v${{ steps.mod_info.outputs.version }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
