@@ -9,7 +9,7 @@ local AMMO_PREFIX = "vd_abtn_"
 local function create_slot_buttons(flow, items, prefix, selected)
   flow.clear()
   if #items == 0 then
-    flow.add({type = "label", caption = "None available in inventory."})
+    flow.add({type = "label", caption = "[color=0.7,0.7,0.7]None available in inventory.[/color]"})
     return
   end
   for _, item in ipairs(items) do
@@ -71,9 +71,13 @@ local function update_grid_status_lbl(frame, player, pd)
 
   if pd.selected_blueprint_grid and #pd.selected_blueprint_grid > 0 then
     local res = helpers.check_grid_equipment_availability(player, pd.selected_blueprint_grid)
-    status_lbl.caption = "[Grid] " .. res.summary
+    if res.available == res.total then
+      status_lbl.caption = "[font=default-bold][color=0.4,1,0.4]✓ Grid Ready:[/color][/font] " .. res.summary
+    else
+      status_lbl.caption = "[font=default-bold][color=1,0.7,0.3]⚠ Grid Items Missing:[/color][/font] " .. res.summary
+    end
   else
-    status_lbl.caption = "[Grid] Standard vehicle (No blueprint grid)"
+    status_lbl.caption = "[color=0.7,0.7,0.7]Standard vehicle (No blueprint grid)[/color]"
   end
 end
 
@@ -137,50 +141,73 @@ function M.open(player)
   local frame = player.gui.screen.add({
     type      = "frame",
     name      = FRAME_NAME,
-    caption   = {"", "[item=car] QuickDrive"},
     direction = "vertical",
   })
-  frame.style.minimal_width = 380
+  frame.style.minimal_width = 330
 
-  -- 1. PRESETS ROW
+  -- TITLE BAR
+  local title_flow = frame.add({type = "flow", direction = "horizontal"})
+  title_flow.style.vertical_align = "center"
+  title_flow.style.bottom_margin = 8
+
+  local title_lbl = title_flow.add({
+    type    = "label",
+    caption = "[item=car] QuickDrive - Vehicle Deployer",
+    style   = "frame_title",
+  })
+  title_lbl.style.font = "default-bold"
+
+  title_flow.add({type = "empty-widget"}).style.horizontally_stretchable = true
+
+  title_flow.add({
+    type    = "sprite-button",
+    name    = "vd_cancel_btn",
+    sprite  = "utility/close",
+    style   = "frame_action_button",
+    tooltip = "Close (Esc)",
+  })
+
+  -- 1. PRESETS ROW (COMPACT DROPDOWN + PLUS BUTTON + DELETE BUTTON)
   local preset_flow = frame.add({type = "flow", name = "vd_preset_flow", direction = "horizontal"})
   preset_flow.style.vertical_align = "center"
-  preset_flow.style.bottom_margin = 4
+  preset_flow.style.horizontal_spacing = 4
+  preset_flow.style.bottom_margin = 6
   
   local preset_lbl = preset_flow.add({type = "label", caption = "Preset:"})
   preset_lbl.style.font = "default-bold"
-  preset_lbl.style.right_margin = 6
 
-  preset_flow.add({
-    type = "drop-down",
-    name = "vd_preset_dropdown",
-    items = {"(Custom / None)"},
+  local dropdown = preset_flow.add({
+    type           = "drop-down",
+    name           = "vd_preset_dropdown",
+    items          = {"(Custom / None)"},
     selected_index = 1,
   })
+  dropdown.style.minimal_width = 150
 
-  preset_flow.add({
-    type = "button",
-    name = "vd_save_preset_btn",
-    caption = "Save Preset",
-    tooltip = "Save current selection as a preset",
-    style = "tool_button",
+  local add_btn = preset_flow.add({
+    type    = "button",
+    name    = "vd_save_preset_btn",
+    caption = " + ",
+    tooltip = "Save current selection as preset",
+    style   = "tool_button",
   })
 
-  preset_flow.add({
-    type = "button",
-    name = "vd_delete_preset_btn",
+  local del_btn = preset_flow.add({
+    type    = "button",
+    name    = "vd_delete_preset_btn",
     caption = "Delete",
-    tooltip = "Delete active preset",
-    style = "tool_button_red",
+    tooltip = "Delete selected preset",
+    style   = "tool_button_red",
   })
+  del_btn.style.minimal_width = 54
 
   update_preset_dropdown(frame, pd)
 
   local sep0 = frame.add({type = "line"})
   sep0.style.top_margin    = 4
-  sep0.style.bottom_margin = 4
+  sep0.style.bottom_margin = 6
 
-  -- 2. BLUEPRINT SELECTION ROW (AT THE TOP!)
+  -- 2. BLUEPRINT SELECTION ROW
   local bp_hdr = frame.add({type = "label", caption = "Select Blueprint ([qdrive])"})
   bp_hdr.style.font          = "default-bold"
   bp_hdr.style.bottom_margin = 4
@@ -188,26 +215,27 @@ function M.open(player)
   local bp_flow = frame.add({type = "flow", name = "vd_bp_flow", direction = "horizontal"})
   bp_flow.style.vertical_align = "center"
 
-  bp_flow.add({
-    type = "drop-down",
-    name = "vd_blueprint_dropdown",
-    items = {"(None / Manual Selection)"},
+  local bp_dd = bp_flow.add({
+    type           = "drop-down",
+    name           = "vd_blueprint_dropdown",
+    items          = {"(None / Manual Selection)"},
     selected_index = 1,
   })
+  bp_dd.style.minimal_width = 210
 
   local grid_flow = frame.add({type = "flow", name = "vd_grid_flow", direction = "horizontal"})
   grid_flow.style.top_margin = 2
   grid_flow.add({
     type    = "label",
     name    = "vd_grid_status_lbl",
-    caption = "[Grid] Standard vehicle (No blueprint grid)",
-  }).style.font = "default-semibold"
+    caption = "[color=0.7,0.7,0.7]Standard vehicle (No blueprint grid)[/color]",
+  })
 
   update_blueprint_dropdown(frame, player, pd)
 
   local sep_bp = frame.add({type = "line"})
   sep_bp.style.top_margin    = 6
-  sep_bp.style.bottom_margin = 4
+  sep_bp.style.bottom_margin = 6
 
   -- 3. VEHICLE SELECTION ROW
   local veh_hdr = frame.add({type = "label", caption = "Select Vehicle"})
@@ -220,7 +248,7 @@ function M.open(player)
 
   local sep1 = frame.add({type = "line"})
   sep1.style.top_margin    = 6
-  sep1.style.bottom_margin = 4
+  sep1.style.bottom_margin = 6
 
   -- 4. FUEL SELECTION ROW
   local fuel_hdr = frame.add({type = "label", caption = "Select Fuel"})
@@ -233,7 +261,7 @@ function M.open(player)
 
   local sep2 = frame.add({type = "line"})
   sep2.style.top_margin    = 6
-  sep2.style.bottom_margin = 4
+  sep2.style.bottom_margin = 6
 
   -- 5. AMMO SELECTION ROW
   local ammo_hdr = frame.add({type = "label", caption = "Select Ammo"})
@@ -246,12 +274,12 @@ function M.open(player)
 
   local sep3 = frame.add({type = "line"})
   sep3.style.top_margin    = 6
-  sep3.style.bottom_margin = 2
+  sep3.style.bottom_margin = 4
 
   frame.add({
     type    = "label",
-    caption = "Shift+Enter to deploy  ·  Esc to cancel",
-  }).style.font = "default-semibold"
+    caption = "[color=0.7,0.7,0.7]Shift+Enter to deploy  ·  Esc to cancel[/color]",
+  })
 
   local btn_row = frame.add({type = "flow", name = "vd_btn_row", direction = "horizontal"})
   btn_row.style.top_margin       = 8
@@ -259,7 +287,6 @@ function M.open(player)
 
   btn_row.add({type = "empty-widget"}).style.horizontally_stretchable = true
   btn_row.add({type = "button", name = "vd_deploy_btn", caption = "Deploy", style = "confirm_button"})
-  btn_row.add({type = "button", name = "vd_cancel_btn", caption = "Cancel", style = "back_button"})
 
   -- Apply initial enabled/disabled state based on current blueprint selection
   local bp_dropdown = frame.vd_bp_flow.vd_blueprint_dropdown
@@ -293,6 +320,8 @@ function M.on_preset_selected(player, selected_index)
   pd.selected_blueprint_grid  = preset.equipment_grid
   pd.selected_color           = preset.color
   pd.selected_blueprint_label = preset.blueprint_label
+  pd.selected_blueprint_fuel  = preset.blueprint_fuel
+  pd.selected_blueprint_ammo  = preset.blueprint_ammo
 
   if preset.vehicle then M.on_vehicle_selected(player, preset.vehicle) end
   if preset.fuel then M.on_fuel_selected(player, preset.fuel) end
@@ -387,13 +416,15 @@ function M.save_current_as_preset(player)
     equipment_grid  = pd.selected_blueprint_grid,
     color           = pd.selected_color,
     blueprint_label = pd.selected_blueprint_label,
+    blueprint_fuel  = pd.selected_blueprint_fuel,
+    blueprint_ammo  = pd.selected_blueprint_ammo,
   })
 
   pd.active_preset = preset_name
 
   local frame = player.gui.screen[FRAME_NAME]
   if frame and frame.valid then update_preset_dropdown(frame, pd) end
-  player.print("[QuickDrive] Preset saved: " .. preset_name)
+  player.print("[QuickDrive] Saved preset: " .. preset_name)
 end
 
 function M.delete_active_preset(player)
@@ -417,12 +448,21 @@ function M.delete_active_preset(player)
   if frame and frame.valid then update_preset_dropdown(frame, pd) end
 end
 
+local function reset_preset_to_custom(frame, pd)
+  pd.active_preset = nil
+  if frame and frame.valid and frame.vd_preset_flow and frame.vd_preset_flow.vd_preset_dropdown then
+    frame.vd_preset_flow.vd_preset_dropdown.selected_index = 1
+  end
+end
+
 function M.on_vehicle_selected(player, vehicle_name)
   local pd = helpers.get_player_data(player.index)
   pd.selected_vehicle = vehicle_name
 
   local frame = player.gui.screen[FRAME_NAME]
   if not (frame and frame.valid) then return end
+
+  reset_preset_to_custom(frame, pd)
 
   for _, child in pairs(frame.vd_vehicle_flow.children) do
     if string.sub(child.name, 1, #VEH_PREFIX) == VEH_PREFIX then
@@ -453,6 +493,8 @@ function M.on_fuel_selected(player, fuel_name)
   local frame = player.gui.screen[FRAME_NAME]
   if not (frame and frame.valid) then return end
 
+  reset_preset_to_custom(frame, pd)
+
   for _, child in pairs(frame.vd_fuel_flow.children) do
     if string.sub(child.name, 1, #FUEL_PREFIX) == FUEL_PREFIX then
       child.toggled = (string.sub(child.name, #FUEL_PREFIX + 1) == fuel_name)
@@ -466,6 +508,8 @@ function M.on_ammo_selected(player, ammo_name)
 
   local frame = player.gui.screen[FRAME_NAME]
   if not (frame and frame.valid) then return end
+
+  reset_preset_to_custom(frame, pd)
 
   for _, child in pairs(frame.vd_ammo_flow.children) do
     if string.sub(child.name, 1, #AMMO_PREFIX) == AMMO_PREFIX then
