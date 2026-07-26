@@ -136,32 +136,67 @@ function M.deploy(player, vehicle_item, fuel_item, grid_spec, color_spec)
     end
   end
 
-  if fuel_item and fuel_item ~= "" then
+  -- Determine target fuel and ammo
+  local target_fuel = fuel_item or pd.selected_fuel or (pd.selected_blueprint_label and pd.selected_blueprint_fuel)
+  local target_ammo = pd.selected_ammo or (pd.selected_blueprint_label and pd.selected_blueprint_ammo)
+
+  -- Load Fuel
+  if target_fuel and target_fuel ~= "" then
     local fuel_inv = vehicle.get_fuel_inventory()
     if fuel_inv then
-      local available = inv.get_item_count(fuel_item)
+      local available = inv.get_item_count(target_fuel)
       if available > 0 then
-        local inserted = fuel_inv.insert({name = fuel_item, count = available})
-        if inserted > 0 then inv.remove({name = fuel_item, count = inserted}) end
+        local inserted = fuel_inv.insert({name = target_fuel, count = available})
+        if inserted > 0 then
+          inv.remove({name = target_fuel, count = inserted})
+          player.print("[QuickDrive] Loaded " .. inserted .. "x " .. target_fuel .. " into vehicle fuel slot.")
+        end
+      end
+    end
+  else
+    local fuels = helpers.get_fuels_for_vehicle(player, entity_name)
+    if #fuels > 0 then
+      local best_fuel = fuels[1].name
+      local fuel_inv  = vehicle.get_fuel_inventory()
+      if fuel_inv then
+        local available = inv.get_item_count(best_fuel)
+        if available > 0 then
+          local inserted = fuel_inv.insert({name = best_fuel, count = available})
+          if inserted > 0 then
+            inv.remove({name = best_fuel, count = inserted})
+            player.print("[QuickDrive] Loaded " .. inserted .. "x " .. best_fuel .. " into vehicle fuel slot.")
+          end
+        end
       end
     end
   end
 
   -- Auto-load Ammo
-  local ammo_inv = try_get_inventory(vehicle, defines.inventory.car_ammo) or try_get_inventory(vehicle, defines.inventory.spider_ammo)
+  local ammo_inv = try_get_inventory(vehicle, defines.inventory.car_ammo) or try_get_inventory(vehicle, defines.inventory.spider_ammo) or try_get_inventory(vehicle, defines.inventory.artillery_turret_ammo)
   if ammo_inv then
-    local selected_ammo = pd.selected_ammo
-    if selected_ammo and selected_ammo ~= "" and inv.get_item_count(selected_ammo) > 0 then
-      local avail = inv.get_item_count(selected_ammo)
-      local inserted = ammo_inv.insert({name = selected_ammo, count = avail})
-      if inserted > 0 then inv.remove({name = selected_ammo, count = inserted}) end
-    else
+    local loaded_ammo_flag = false
+
+    if target_ammo and target_ammo ~= "" and inv.get_item_count(target_ammo) > 0 then
+      local avail = inv.get_item_count(target_ammo)
+      local inserted = ammo_inv.insert({name = target_ammo, count = avail})
+      if inserted > 0 then
+        inv.remove({name = target_ammo, count = inserted})
+        player.print("[QuickDrive] Loaded " .. inserted .. "x " .. target_ammo .. " into vehicle ammo slot.")
+        loaded_ammo_flag = true
+      end
+    end
+
+    if not loaded_ammo_flag then
       local ammo_list = helpers.get_ammo_for_vehicle(player, entity_name)
       for _, ammo in ipairs(ammo_list) do
         local avail = inv.get_item_count(ammo.name)
         if avail > 0 then
           local inserted = ammo_inv.insert({name = ammo.name, count = avail})
-          if inserted > 0 then inv.remove({name = ammo.name, count = inserted}) end
+          if inserted > 0 then
+            inv.remove({name = ammo.name, count = inserted})
+            player.print("[QuickDrive] Loaded " .. inserted .. "x " .. ammo.name .. " into vehicle ammo slot.")
+            break
+          end
         end
       end
     end

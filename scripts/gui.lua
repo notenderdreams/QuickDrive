@@ -25,22 +25,26 @@ local function create_slot_buttons(flow, items, prefix, selected)
   end
 end
 
-local function set_manual_sections_enabled(frame, enabled)
+local function set_manual_sections_enabled(frame, vehicle_enabled, fuel_enabled, ammo_enabled)
+  if vehicle_enabled == nil then vehicle_enabled = true end
+  if fuel_enabled == nil then fuel_enabled = true end
+  if ammo_enabled == nil then ammo_enabled = true end
+
   if frame.vd_vehicle_flow and frame.vd_vehicle_flow.valid then
     for _, child in pairs(frame.vd_vehicle_flow.children) do
-      child.enabled = enabled
+      child.enabled = vehicle_enabled
     end
   end
 
   if frame.vd_fuel_flow and frame.vd_fuel_flow.valid then
     for _, child in pairs(frame.vd_fuel_flow.children) do
-      child.enabled = enabled
+      child.enabled = fuel_enabled
     end
   end
 
   if frame.vd_ammo_flow and frame.vd_ammo_flow.valid then
     for _, child in pairs(frame.vd_ammo_flow.children) do
-      child.enabled = enabled
+      child.enabled = ammo_enabled
     end
   end
 end
@@ -305,9 +309,11 @@ function M.on_blueprint_selected(player, selected_index)
     pd.selected_blueprint_grid  = nil
     pd.selected_color           = nil
     pd.selected_blueprint_label = nil
+    pd.selected_blueprint_fuel  = nil
+    pd.selected_blueprint_ammo  = nil
 
     if frame and frame.valid then
-      set_manual_sections_enabled(frame, true)
+      set_manual_sections_enabled(frame, true, true, true)
       local deploy_btn = frame.vd_btn_row and frame.vd_btn_row.vd_deploy_btn
       if deploy_btn and deploy_btn.valid then
         deploy_btn.caption = "Deploy"
@@ -319,6 +325,8 @@ function M.on_blueprint_selected(player, selected_index)
       pd.selected_blueprint_grid  = bp.equipment_grid
       pd.selected_color           = bp.color
       pd.selected_blueprint_label = bp.label
+      pd.selected_blueprint_fuel  = bp.fuel
+      pd.selected_blueprint_ammo  = bp.ammo
 
       -- Always update selected vehicle to match the blueprint's vehicle item
       if bp.vehicle_item then
@@ -345,7 +353,8 @@ function M.on_blueprint_selected(player, selected_index)
       end
 
       if frame and frame.valid then
-        set_manual_sections_enabled(frame, false)
+        -- Lock Vehicle selection (false) but keep Fuel & Ammo active/interactable (true, true)
+        set_manual_sections_enabled(frame, false, true, true)
         local deploy_btn = frame.vd_btn_row and frame.vd_btn_row.vd_deploy_btn
         if deploy_btn and deploy_btn.valid then
           deploy_btn.caption = "Deploy Blueprint"
