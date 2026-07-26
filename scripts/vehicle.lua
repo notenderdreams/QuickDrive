@@ -24,7 +24,11 @@ local function try_get_inventory(veh, define)
   return nil
 end
 
-function M.deploy(player, vehicle_item, fuel_item)
+function M.deploy(player, vehicle_item, fuel_item, grid_spec, color_spec)
+  local pd = helpers.get_player_data(player.index)
+  grid_spec  = grid_spec or pd.selected_blueprint_grid
+  color_spec = color_spec or pd.selected_color
+
   local inv = player.get_main_inventory()
   if not inv then
     player.print("[QuickDrive] No inventory available!")
@@ -65,6 +69,73 @@ function M.deploy(player, vehicle_item, fuel_item)
     return false
   end
 
+  -- Apply Vehicle Color if specified in blueprint
+  if color_spec then
+    pcall(function() vehicle.color = color_spec end)
+  end
+
+  -- Populate Equipment Grid from blueprint specification
+  if grid_spec and #grid_spec > 0 then
+    if not (vehicle.grid and vehicle.grid.valid) then
+      player.print("[QuickDrive] Note: " .. entity_name .. " does not have an equipment grid prototype.")
+    else
+      local missing_counts = {}
+      local installed_count = 0
+
+      for _, eq in ipairs(grid_spec) do
+        local raw_eq_name = (type(eq) == "table" and (eq.name or eq.equipment)) or eq
+        local item_name   = helpers.get_item_name_for_equipment(raw_eq_name)
+
+        if type(item_name) ~= "string" then item_name = tostring(item_name) end
+        local eq_name = (type(raw_eq_name) == "string" and raw_eq_name) or tostring(raw_eq_name)
+
+        if inv.get_item_count(item_name) > 0 then
+          local added = nil
+          local pos   = type(eq) == "table" and eq.position or nil
+
+          pcall(function()
+            if pos then
+              added = vehicle.grid.put({name = eq_name, position = pos})
+              if not added and pos.x and pos.y then
+                added = vehicle.grid.put({name = eq_name, position = {pos.x, pos.y}})
+              end
+              if not added then
+                added = vehicle.grid.put({equipment = eq_name, position = pos})
+              end
+            end
+            if not added then
+              added = vehicle.grid.put({name = eq_name})
+            end
+            if not added then
+              added = vehicle.grid.put({equipment = eq_name})
+            end
+          end)
+
+          if added then
+            inv.remove({name = item_name, count = 1})
+            installed_count = installed_count + 1
+          else
+            missing_counts[item_name] = (missing_counts[item_name] or 0) + 1
+          end
+        else
+          missing_counts[item_name] = (missing_counts[item_name] or 0) + 1
+        end
+      end
+
+      if installed_count > 0 then
+        player.print("[QuickDrive] Installed " .. installed_count .. "/" .. #grid_spec .. " grid items into vehicle!")
+      end
+
+      local missing_parts = {}
+      for item_name_str, cnt in pairs(missing_counts) do
+        table.insert(missing_parts, cnt .. "x " .. tostring(item_name_str))
+      end
+      if #missing_parts > 0 then
+        player.print("[QuickDrive] Missing grid items in inventory: " .. table.concat(missing_parts, ", "))
+      end
+    end
+  end
+
   if fuel_item and fuel_item ~= "" then
     local fuel_inv = vehicle.get_fuel_inventory()
     if fuel_inv then
@@ -79,7 +150,6 @@ function M.deploy(player, vehicle_item, fuel_item)
   -- Auto-load Ammo
   local ammo_inv = try_get_inventory(vehicle, defines.inventory.car_ammo) or try_get_inventory(vehicle, defines.inventory.spider_ammo)
   if ammo_inv then
-    local pd = helpers.get_player_data(player.index)
     local selected_ammo = pd.selected_ammo
     if selected_ammo and selected_ammo ~= "" and inv.get_item_count(selected_ammo) > 0 then
       local avail = inv.get_item_count(selected_ammo)
@@ -112,7 +182,6 @@ function M.deploy(player, vehicle_item, fuel_item)
     pcall(function() vehicle.enable_headlights = true end)
   end
 
-  local pd = helpers.get_player_data(player.index)
   pd.deployed_vehicle_unit_number = vehicle.unit_number
   pd.deployed_vehicle_item        = vehicle_item
 
@@ -135,6 +204,22 @@ function M.undeploy(player)
 
   if player.character and player.character.valid then
     player.character.orientation = veh_orientation
+  end
+
+  -- Drain Equipment Grid items back to player main inventory
+  if vehicle.grid and vehicle.grid.valid then
+    local grid_eqs = vehicle.grid.equipment
+    if grid_eqs then
+      for _, eq in ipairs(grid_eqs) do
+        if eq and eq.valid then
+          local item_name = helpers.get_item_name_for_equipment(eq.name)
+          if type(item_name) == "string" then
+            inv.insert({name = item_name, count = 1})
+          end
+        end
+      end
+      pcall(function() vehicle.grid.clear() end)
+    end
   end
 
   drain_inventory(vehicle.get_fuel_inventory(), inv)

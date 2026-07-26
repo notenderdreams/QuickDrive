@@ -72,6 +72,8 @@ script.on_event(defines.events.on_gui_selection_state_changed, function(event)
 
   if element.name == "vd_preset_dropdown" then
     gui.on_preset_selected(player, element.selected_index)
+  elseif element.name == "vd_blueprint_dropdown" then
+    gui.on_blueprint_selected(player, element.selected_index)
   end
 end)
 

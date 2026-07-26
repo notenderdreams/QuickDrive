@@ -28,6 +28,8 @@ QuickDrive lets you quickly place a vehicle from your inventory, load it with yo
 
 ## Features
 
+- **Equipment Grid & Blueprint Support:** Detects single-vehicle blueprints in your inventory or cursor. Automatically equips your vehicle's grid (modules, reactors, laser defense) from your main inventory upon deployment and safely returns grid equipment when packing up.
+- **Color & Preset Customization:** Saves custom vehicle paint schemes and full grid layout configurations as reusable presets.
 - **Automatic Fueling & Ammo:** Automatically loads your selected fuel and compatible ammo directly from inventory upon deployment.
 - **Persistent Direction:** Inherits your character's exact orientation when entering and exiting vehicles.
 - **Auto Launch / Initial Speed Boost:** Gives the vehicle an immediate forward speed burst on deployment.
