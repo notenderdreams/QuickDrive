@@ -118,14 +118,23 @@ local function update_weapon_ammo_flows(frame, player, pd, ent_name, ammo_enable
 
   ammo_container.clear()
 
-  -- Distribute Checkbox
-  local dist_cb = ammo_container.add({
-    type    = "checkbox",
-    name    = "vd_distribute_checkbox",
-    caption = "Distribute ammo equally across launcher slots",
-    state   = (pd.distribute_ammo == true),
-  })
-  dist_cb.style.bottom_margin = 4
+  local is_spidertron = (ent_name == "spidertron" or ent_name == "spider-vehicle")
+  if not is_spidertron then
+    local ent_proto = prototypes.entity[ent_name]
+    if ent_proto and ent_proto.type == "spider-vehicle" then
+      is_spidertron = true
+    end
+  end
+
+  if is_spidertron then
+    local dist_cb = ammo_container.add({
+      type    = "checkbox",
+      name    = "vd_distribute_checkbox",
+      caption = "Distribute ammo equally across launcher slots",
+      state   = (pd.distribute_ammo == true),
+    })
+    dist_cb.style.bottom_margin = 4
+  end
 
   local weapons = helpers.get_weapon_ammos_for_vehicle(player, ent_name)
   if #weapons == 0 then

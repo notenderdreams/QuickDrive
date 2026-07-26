@@ -178,7 +178,8 @@ function M.deploy(player, vehicle_item, fuel_item, grid_spec, color_spec)
     local selected_ammos = pd.selected_ammos or {}
     local num_slots      = #ammo_inv
 
-    if pd.distribute_ammo and num_slots > 1 then
+    local is_spidertron = (entity_name == "spidertron" or entity_name == "spider-vehicle" or vehicle.type == "spider-vehicle")
+    if is_spidertron and pd.distribute_ammo and num_slots > 1 then
       -- EQUAL DISTRIBUTION MODE ACROSS LAUNCHER/WEAPON SLOTS
       for _, wspec in ipairs(weapon_ammos) do
         local target_w_ammo = selected_ammos[wspec.slot_index] or selected_ammos[wspec.name] or target_ammo

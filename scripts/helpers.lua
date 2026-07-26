@@ -398,8 +398,13 @@ function M.get_weapon_ammos_for_vehicle(player, vehicle_entity_name)
   local ent_proto = prototypes.entity[vehicle_entity_name]
   local weapon_list = {}
 
-  -- If distribute_ammo is false and vehicle has multiple gun slots (e.g. Spidertron 4 launchers), list each launcher slot individually
-  if not pd.distribute_ammo and ent_proto and ent_proto.guns and #ent_proto.guns > 1 then
+  local is_spidertron = (vehicle_entity_name == "spidertron" or vehicle_entity_name == "spider-vehicle")
+  if not is_spidertron and ent_proto and ent_proto.type == "spider-vehicle" then
+    is_spidertron = true
+  end
+
+  -- If vehicle is Spidertron and distribute_ammo is false, list each launcher slot individually
+  if is_spidertron and not pd.distribute_ammo and ent_proto and ent_proto.guns and #ent_proto.guns > 1 then
     for i, gun_proto in ipairs(ent_proto.guns) do
       if gun_proto and gun_proto.attack_parameters then
         local ammo_cat = gun_proto.attack_parameters.ammo_category

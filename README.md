@@ -2,7 +2,7 @@
 
 ![QuickDrive Banner](assets/gh-banner.png)
 
-QuickDrive lets you quickly place a vehicle from your inventory, load it with your chosen fuel, and jump straight into the driver's seat using hotkeys. When you're done driving, press the keybind again to pack the vehicle and all remaining fuel/cargo back into your inventory.
+QuickDrive lets you quickly place a vehicle from your inventory, load it with your chosen fuel and ammo, and jump straight into the driver's seat using hotkeys. When you're done driving, press the keybind again to pack the vehicle and all remaining fuel/cargo back into your inventory.
 
 ---
 
@@ -18,12 +18,15 @@ QuickDrive lets you quickly place a vehicle from your inventory, load it with yo
 
 ---
 
-## How It Works
+## Overview & GUI Instructions
 
-1. **Configure Your Setup:** Press Ctrl + Shift + V to open the GUI. Select your preferred vehicle and fuel type from items available in your inventory.
-2. **Deploy & Drive:** Press Shift + Enter to instantly place the vehicle, automatically transfer available fuel, and hop inside.
-3. **Save State:** QuickDrive remembers your last selection across sessions. Next time, just press Shift + Enter to deploy without opening the GUI.
-4. **Pack Up:** Press Shift + Enter while inside a QuickDrive-deployed vehicle to exit, safely transfer all fuel and cargo back to your main inventory, and retrieve the vehicle item.
+![QuickDrive Instructions](assets/instruction.png)
+
+- **Open QuickDrive:** Press `Ctrl + Shift + V` to open the configuration GUI.
+- **Presets:** Save your current vehicle, fuel, and ammo configuration as a reusable preset.
+- **Equipment Grids & Blueprints:** Equipment grids are loaded from vehicle blueprints. Create a blueprint first, then select it in the GUI. Blueprint names must start with `[qdrive]` (e.g. `[qdrive] Combat Spidertron`).
+- **Independent Ammo Selection:** Choose the ammo for each weapon independently.
+- **Spidertron Ammo Distribution:** For Spidertrons, toggle equal ammo distribution across all launcher slots.
 
 ---
 
@@ -43,8 +46,9 @@ QuickDrive lets you quickly place a vehicle from your inventory, load it with yo
 
 ## Installation
 
-1. Download or copy the `quick-drive_0.1.0` folder into your Factorio mods directory:
+1. Download the latest `quick-drive_<version>.zip` package from the [releases](https://github.com/notenderdreams/QuickDrive/releases) page.
+2. Place the `.zip` archive or extracted `quick-drive_<version>` folder into your Factorio mods directory:
    - **macOS:** `~/Library/Application Support/factorio/mods/`
    - **Windows:** `%APPDATA%\Factorio\mods\`
    - **Linux:** `~/.factorio/mods/`
-2. Start Factorio and verify that QuickDrive is enabled in the Mods menu.
+3. Start Factorio and verify that QuickDrive is enabled in the Mods menu.
