@@ -1,5 +1,6 @@
 # QuickDrive
-Instant vehicle deployment, automated fuel loading, and quick packing for Factorio 2.0.
+
+![QuickDrive Banner](assets/gh-banner.png)
 
 QuickDrive lets you quickly place a vehicle from your inventory, load it with your chosen fuel, and jump straight into the driver's seat using hotkeys. When you're done driving, press the keybind again to pack the vehicle and all remaining fuel/cargo back into your inventory.
 
