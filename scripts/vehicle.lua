@@ -171,31 +171,103 @@ function M.deploy(player, vehicle_item, fuel_item, grid_spec, color_spec)
     end
   end
 
-  -- Auto-load Ammo
-  local ammo_inv = try_get_inventory(vehicle, defines.inventory.car_ammo) or try_get_inventory(vehicle, defines.inventory.spider_ammo) or try_get_inventory(vehicle, defines.inventory.artillery_turret_ammo)
+  -- Auto-load Ammo for all vehicle weapons
+  local ammo_inv = try_get_inventory(vehicle, defines.inventory.spider_ammo) or try_get_inventory(vehicle, defines.inventory.car_ammo) or try_get_inventory(vehicle, defines.inventory.artillery_turret_ammo)
   if ammo_inv then
-    local loaded_ammo_flag = false
+    local weapon_ammos   = helpers.get_weapon_ammos_for_vehicle(player, entity_name)
+    local selected_ammos = pd.selected_ammos or {}
+    local num_slots      = #ammo_inv
 
-    if target_ammo and target_ammo ~= "" and inv.get_item_count(target_ammo) > 0 then
-      local avail = inv.get_item_count(target_ammo)
-      local inserted = ammo_inv.insert({name = target_ammo, count = avail})
-      if inserted > 0 then
-        inv.remove({name = target_ammo, count = inserted})
-        player.print("[QuickDrive] Loaded " .. inserted .. "x " .. target_ammo .. " into vehicle ammo slot.")
-        loaded_ammo_flag = true
+    if pd.distribute_ammo and num_slots > 1 then
+      -- EQUAL DISTRIBUTION MODE ACROSS LAUNCHER/WEAPON SLOTS
+      for _, wspec in ipairs(weapon_ammos) do
+        local target_w_ammo = selected_ammos[wspec.slot_index] or selected_ammos[wspec.name] or target_ammo
+        if target_w_ammo and target_w_ammo ~= "" and inv.get_item_count(target_w_ammo) > 0 then
+          local total_avail = inv.get_item_count(target_w_ammo)
+          local per_slot    = math.floor(total_avail / num_slots)
+          if per_slot < 1 then per_slot = 1 end
+
+          local total_inserted = 0
+          for s_i = 1, num_slots do
+            if inv.get_item_count(target_w_ammo) <= 0 then break end
+            local count_to_add = math.min(per_slot, inv.get_item_count(target_w_ammo))
+            local slot_stack   = ammo_inv[s_i]
+
+            if slot_stack.valid_for_read then
+              if slot_stack.name == target_w_ammo then
+                local max_stack = prototypes.item[target_w_ammo].stack_size or 200
+                local space = max_stack - slot_stack.count
+                local added = math.min(count_to_add, space)
+                if added > 0 then
+                  slot_stack.count = slot_stack.count + added
+                  inv.remove({name = target_w_ammo, count = added})
+                  total_inserted = total_inserted + added
+                end
+              end
+            else
+              local ok = slot_stack.set_stack({name = target_w_ammo, count = count_to_add})
+              if ok then
+                inv.remove({name = target_w_ammo, count = count_to_add})
+                total_inserted = total_inserted + count_to_add
+              end
+            end
+          end
+
+          if total_inserted > 0 then
+            player.print("[QuickDrive] Distributed " .. total_inserted .. "x " .. target_w_ammo .. " equally across " .. num_slots .. " slots.")
+          end
+        end
+
+        -- Fill any remaining empty slots with other compatible ammos in inventory
+        if not ammo_inv.is_full() then
+          for _, ammo in ipairs(wspec.ammos) do
+            if ammo_inv.is_full() then break end
+            if ammo.name ~= target_w_ammo then
+              local avail = inv.get_item_count(ammo.name)
+              if avail > 0 then
+                local inserted = ammo_inv.insert({name = ammo.name, count = avail})
+                if inserted > 0 then
+                  inv.remove({name = ammo.name, count = inserted})
+                  player.print("[QuickDrive] Loaded " .. inserted .. "x " .. ammo.name .. " into vehicle ammo slots.")
+                end
+              end
+            end
+          end
+        end
       end
-    end
+    else
+      -- PER-SLOT / INDIVIDUAL LAUNCHER SLOT MODE
+      for _, wspec in ipairs(weapon_ammos) do
+        local target_w_ammo = selected_ammos[wspec.slot_index] or selected_ammos[wspec.name] or target_ammo
+        if target_w_ammo and target_w_ammo ~= "" and inv.get_item_count(target_w_ammo) > 0 then
+          local avail = inv.get_item_count(target_w_ammo)
 
-    if not loaded_ammo_flag then
-      local ammo_list = helpers.get_ammo_for_vehicle(player, entity_name)
-      for _, ammo in ipairs(ammo_list) do
-        local avail = inv.get_item_count(ammo.name)
-        if avail > 0 then
-          local inserted = ammo_inv.insert({name = ammo.name, count = avail})
-          if inserted > 0 then
-            inv.remove({name = ammo.name, count = inserted})
-            player.print("[QuickDrive] Loaded " .. inserted .. "x " .. ammo.name .. " into vehicle ammo slot.")
-            break
+          if wspec.slot_index and wspec.slot_index <= num_slots then
+            local slot_stack = ammo_inv[wspec.slot_index]
+            if slot_stack.valid_for_read then
+              if slot_stack.name == target_w_ammo then
+                local max_stack = prototypes.item[target_w_ammo].stack_size or 200
+                local space = max_stack - slot_stack.count
+                local added = math.min(avail, space)
+                if added > 0 then
+                  slot_stack.count = slot_stack.count + added
+                  inv.remove({name = target_w_ammo, count = added})
+                  player.print("[QuickDrive] Loaded " .. added .. "x " .. target_w_ammo .. " into " .. wspec.name .. ".")
+                end
+              end
+            else
+              local ok = slot_stack.set_stack({name = target_w_ammo, count = avail})
+              if ok then
+                inv.remove({name = target_w_ammo, count = avail})
+                player.print("[QuickDrive] Loaded " .. avail .. "x " .. target_w_ammo .. " into " .. wspec.name .. ".")
+              end
+            end
+          else
+            local inserted = ammo_inv.insert({name = target_w_ammo, count = avail})
+            if inserted > 0 then
+              inv.remove({name = target_w_ammo, count = inserted})
+              player.print("[QuickDrive] Loaded " .. inserted .. "x " .. target_w_ammo .. " into " .. wspec.name .. ".")
+            end
           end
         end
       end

@@ -5,6 +5,41 @@ local VEHICLE_ENTITY_TYPES = {
   ["spider-vehicle"] = true,
 }
 
+local VEHICLE_WEAPONS = {
+  ["car"] = {
+    {
+      name  = "Vehicle Machine Gun",
+      ammos = {"firearm-magazine", "piercing-rounds-magazine", "uranium-rounds-magazine"},
+    },
+  },
+  ["tank"] = {
+    {
+      name  = "Cannon",
+      ammos = {"cannon-shell", "explosive-cannon-shell", "uranium-cannon-shell", "explosive-uranium-cannon-shell"},
+    },
+    {
+      name  = "Vehicle Machine Gun",
+      ammos = {"firearm-magazine", "piercing-rounds-magazine", "uranium-rounds-magazine"},
+    },
+    {
+      name  = "Vehicle Flamethrower",
+      ammos = {"flamethrower-ammo"},
+    },
+  },
+  ["spidertron"] = {
+    {
+      name  = "Spidertron Rockets",
+      ammos = {"rocket", "explosive-rocket", "atomic-bomb"},
+    },
+  },
+  ["spider-vehicle"] = {
+    {
+      name  = "Spidertron Rockets",
+      ammos = {"rocket", "explosive-rocket", "atomic-bomb"},
+    },
+  },
+}
+
 function M.get_player_data(player_index)
   if not storage.players then storage.players = {} end
   if not storage.players[player_index] then
@@ -12,6 +47,8 @@ function M.get_player_data(player_index)
       selected_vehicle             = nil,
       selected_fuel                = nil,
       selected_ammo                = nil,
+      selected_ammos               = {},
+      distribute_ammo              = true,
       selected_blueprint_grid      = nil,
       selected_color               = nil,
       selected_blueprint_label     = nil,
@@ -23,6 +60,8 @@ function M.get_player_data(player_index)
   end
   local pd = storage.players[player_index]
   if not pd.presets then pd.presets = {} end
+  if not pd.selected_ammos then pd.selected_ammos = {} end
+  if pd.distribute_ammo == nil then pd.distribute_ammo = true end
   return pd
 end
 
@@ -163,29 +202,42 @@ function M.extract_blueprint_vehicle_data(target)
     end
   end
 
+  -- Extract fuel & ammo items from blueprint entity containers/inventories
   local bp_fuel = nil
   local bp_ammo = nil
 
-  if veh_ent.items then
-    for item_key, item_val in pairs(veh_ent.items) do
-      local item_name = item_key
-      if type(item_key) == "number" and type(item_val) == "table" then
-        item_name = (item_val.id and item_val.id.name) or item_val.name
+  local function inspect_item_entry(item_name)
+    if not item_name or type(item_name) ~= "string" then return end
+    local ok, item_proto = pcall(function() return prototypes.item[item_name] end)
+    if ok and item_proto then
+      if item_proto.fuel_category and not bp_fuel then
+        bp_fuel = item_name
       end
-
-      if type(item_name) == "string" then
-        local item_proto = prototypes.item[item_name]
-        if item_proto then
-          if item_proto.fuel_category and not bp_fuel then
-            bp_fuel = item_name
-          end
-          if item_proto.type == "ammo" and not bp_ammo then
-            bp_ammo = item_name
-          end
-        end
+      if item_proto.type == "ammo" and not bp_ammo then
+        bp_ammo = item_name
       end
     end
   end
+
+  local function scan_items_container(container)
+    if not container or type(container) ~= "table" then return end
+    for k, v in pairs(container) do
+      if type(k) == "string" then inspect_item_entry(k) end
+      if type(v) == "string" then
+        inspect_item_entry(v)
+      elseif type(v) == "table" then
+        local name = v.name or (v.id and v.id.name)
+        if name then inspect_item_entry(name) end
+      end
+    end
+  end
+
+  scan_items_container(veh_ent.items)
+  scan_items_container(veh_ent.ammo_inventory)
+  scan_items_container(veh_ent.fuel_inventory)
+  scan_items_container(veh_ent.trunk_inventory)
+  scan_items_container(veh_ent.inventory)
+  scan_items_container(veh_ent.filters)
 
   return {
     label          = label,
@@ -338,60 +390,140 @@ function M.get_fuels_for_vehicle(player, vehicle_entity_name)
   return results
 end
 
--- Vehicle entity name to ammo item name mapping for vanilla & popular vehicles
-local HARDCODED_VEHICLE_AMMO = {
-  ["car"] = {
-    ["firearm-magazine"]           = true,
-    ["piercing-rounds-magazine"]   = true,
-    ["uranium-rounds-magazine"]    = true,
-  },
-  ["tank"] = {
-    ["cannon-shell"]               = true,
-    ["explosive-cannon-shell"]     = true,
-    ["uranium-cannon-shell"]       = true,
-    ["explosive-uranium-cannon-shell"] = true,
-    ["firearm-magazine"]           = true,
-    ["piercing-rounds-magazine"]   = true,
-    ["uranium-rounds-magazine"]    = true,
-    ["flamethrower-ammo"]          = true,
-  },
-  ["spidertron"] = {
-    ["rocket"]                     = true,
-    ["explosive-rocket"]           = true,
-    ["atomic-bomb"]                = true,
-  },
-}
-
-function M.get_ammo_for_vehicle(player, vehicle_entity_name)
-  local results, seen = {}, {}
+function M.get_weapon_ammos_for_vehicle(player, vehicle_entity_name)
   local inv = player.get_main_inventory()
-  if not inv then return results end
+  if not inv then return {} end
 
-  local allowed_map = HARDCODED_VEHICLE_AMMO[vehicle_entity_name]
+  local pd = M.get_player_data(player.index)
+  local ent_proto = prototypes.entity[vehicle_entity_name]
+  local weapon_list = {}
 
-  for i = 1, #inv do
-    local stack = inv[i]
-    if stack.valid_for_read and not seen[stack.name] then
-      local is_valid = false
-      if allowed_map then
-        is_valid = allowed_map[stack.name] == true
-      else
-        local item_proto = prototypes.item[stack.name]
-        if item_proto and item_proto.type == "ammo" then
-          is_valid = true
+  -- If distribute_ammo is false and vehicle has multiple gun slots (e.g. Spidertron 4 launchers), list each launcher slot individually
+  if not pd.distribute_ammo and ent_proto and ent_proto.guns and #ent_proto.guns > 1 then
+    for i, gun_proto in ipairs(ent_proto.guns) do
+      if gun_proto and gun_proto.attack_parameters then
+        local ammo_cat = gun_proto.attack_parameters.ammo_category
+        if ammo_cat then
+          local slot_label = "Launcher Slot " .. i
+          local avail_ammos = {}
+          local seen_item = {}
+
+          for inv_idx = 1, #inv do
+            local stack = inv[inv_idx]
+            if stack.valid_for_read and not seen_item[stack.name] then
+              local item_proto = prototypes.item[stack.name]
+              if item_proto and item_proto.type == "ammo" then
+                local is_compat = (item_proto.ammo_category == ammo_cat) or (item_proto.ammo_type and item_proto.ammo_type.category == ammo_cat)
+                if is_compat then
+                  seen_item[stack.name] = true
+                  table.insert(avail_ammos, {
+                    name  = stack.name,
+                    count = inv.get_item_count(stack.name),
+                  })
+                end
+              end
+            end
+          end
+
+          if #avail_ammos > 0 then
+            table.insert(weapon_list, {
+              slot_index    = i,
+              name          = slot_label,
+              ammo_category = ammo_cat,
+              ammos         = avail_ammos,
+            })
+          end
         end
-      end
-
-      if is_valid then
-        seen[stack.name] = true
-        table.insert(results, {
-          name  = stack.name,
-          count = inv.get_item_count(stack.name),
-        })
       end
     end
   end
 
+  -- Default: Deduplicate by ammo_category when distribute_ammo is true
+  if #weapon_list == 0 then
+    local seen_categories = {}
+    if ent_proto and ent_proto.guns then
+      for _, gun_proto in pairs(ent_proto.guns) do
+        if gun_proto and gun_proto.attack_parameters then
+          local ammo_cat = gun_proto.attack_parameters.ammo_category
+          if ammo_cat and not seen_categories[ammo_cat] then
+            seen_categories[ammo_cat] = true
+
+            local gun_display_name = gun_proto.name:gsub("%-", " "):gsub("^%l", string.upper)
+            local avail_ammos = {}
+            local seen_item = {}
+
+            for inv_idx = 1, #inv do
+              local stack = inv[inv_idx]
+              if stack.valid_for_read and not seen_item[stack.name] then
+                local item_proto = prototypes.item[stack.name]
+                if item_proto and item_proto.type == "ammo" then
+                  local is_compat = (item_proto.ammo_category == ammo_cat) or (item_proto.ammo_type and item_proto.ammo_type.category == ammo_cat)
+                  if is_compat then
+                    seen_item[stack.name] = true
+                    table.insert(avail_ammos, {
+                      name  = stack.name,
+                      count = inv.get_item_count(stack.name),
+                    })
+                  end
+                end
+              end
+            end
+
+            if #avail_ammos > 0 then
+              table.insert(weapon_list, {
+                slot_index    = #weapon_list + 1,
+                name          = gun_display_name,
+                ammo_category = ammo_cat,
+                ammos         = avail_ammos,
+              })
+            end
+          end
+        end
+      end
+    end
+  end
+
+  -- Fallback to predefined mapping if dynamic prototype inspection returned no items
+  if #weapon_list == 0 then
+    local defined_weapons = VEHICLE_WEAPONS[vehicle_entity_name] or VEHICLE_WEAPONS["car"]
+    if defined_weapons then
+      for i, wdef in ipairs(defined_weapons) do
+        local avail_ammos = {}
+        for _, ammo_name in ipairs(wdef.ammos) do
+          local count = inv.get_item_count(ammo_name)
+          if count > 0 then
+            table.insert(avail_ammos, {
+              name  = ammo_name,
+              count = count,
+            })
+          end
+        end
+        if #avail_ammos > 0 then
+          table.insert(weapon_list, {
+            slot_index = i,
+            name       = wdef.name,
+            ammos      = avail_ammos,
+          })
+        end
+      end
+    end
+  end
+
+  return weapon_list
+end
+
+-- Backward compatibility wrapper for single ammo query
+function M.get_ammo_for_vehicle(player, vehicle_entity_name)
+  local weapons = M.get_weapon_ammos_for_vehicle(player, vehicle_entity_name)
+  local results, seen = {}, {}
+  for _, w in ipairs(weapons) do
+    for _, a in ipairs(w.ammos) do
+      if not seen[a.name] then
+        seen[a.name] = true
+        table.insert(results, a)
+      end
+    end
+  end
   return results
 end
 

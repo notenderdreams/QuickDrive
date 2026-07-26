@@ -62,7 +62,13 @@ script.on_event(defines.events.on_gui_click, function(event)
   elseif string.sub(name, 1, #"vd_fbtn_") == "vd_fbtn_" then
     gui.on_fuel_selected(player, string.sub(name, #"vd_fbtn_" + 1))
   elseif string.sub(name, 1, #"vd_abtn_") == "vd_abtn_" then
-    gui.on_ammo_selected(player, string.sub(name, #"vd_abtn_" + 1))
+    local rest = string.sub(name, #"vd_abtn_" + 1)
+    local s_idx, ammo_item = string.match(rest, "^(%d+)_(.+)$")
+    if s_idx and ammo_item then
+      gui.on_ammo_selected(player, ammo_item, tonumber(s_idx))
+    else
+      gui.on_ammo_selected(player, rest)
+    end
   elseif name == "vd_save_preset_btn" then
     gui.save_current_as_preset(player)
   elseif name == "vd_delete_preset_btn" then
@@ -77,6 +83,19 @@ script.on_event(defines.events.on_gui_click, function(event)
     end
   elseif name == "vd_cancel_btn" then
     gui.close(player)
+  elseif name == "vd_distribute_checkbox" then
+    gui.on_distribute_toggled(player, element.state)
+  end
+end)
+
+script.on_event(defines.events.on_gui_checked_state_changed, function(event)
+  local element = event.element
+  if not (element and element.valid) then return end
+  local player = game.players[event.player_index]
+  if not (player and player.valid) then return end
+
+  if element.name == "vd_distribute_checkbox" then
+    gui.on_distribute_toggled(player, element.state)
   end
 end)
 

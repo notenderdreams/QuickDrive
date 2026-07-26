@@ -42,9 +42,13 @@ local function set_manual_sections_enabled(frame, vehicle_enabled, fuel_enabled,
     end
   end
 
-  if frame.vd_ammo_flow and frame.vd_ammo_flow.valid then
-    for _, child in pairs(frame.vd_ammo_flow.children) do
-      child.enabled = ammo_enabled
+  if frame.vd_ammo_container and frame.vd_ammo_container.valid then
+    for _, child_flow in pairs(frame.vd_ammo_container.children) do
+      if child_flow.children then
+        for _, btn in pairs(child_flow.children) do
+          btn.enabled = ammo_enabled
+        end
+      end
     end
   end
 end
@@ -108,6 +112,70 @@ local function update_blueprint_dropdown(frame, player, pd)
   update_grid_status_lbl(frame, player, pd)
 end
 
+local function update_weapon_ammo_flows(frame, player, pd, ent_name, ammo_enabled)
+  local ammo_container = frame.vd_ammo_container
+  if not (ammo_container and ammo_container.valid) then return end
+
+  ammo_container.clear()
+
+  -- Distribute Checkbox
+  local dist_cb = ammo_container.add({
+    type    = "checkbox",
+    name    = "vd_distribute_checkbox",
+    caption = "Distribute ammo equally across launcher slots",
+    state   = (pd.distribute_ammo == true),
+  })
+  dist_cb.style.bottom_margin = 4
+
+  local weapons = helpers.get_weapon_ammos_for_vehicle(player, ent_name)
+  if #weapons == 0 then
+    local hdr = ammo_container.add({type = "label", caption = "Select Ammo"})
+    hdr.style.font = "default-bold"
+    hdr.style.bottom_margin = 4
+    ammo_container.add({type = "label", caption = "[color=0.7,0.7,0.7]None available in inventory.[/color]"})
+    return
+  end
+
+  if not pd.selected_ammos then pd.selected_ammos = {} end
+
+  for _, w in ipairs(weapons) do
+    local hdr = ammo_container.add({type = "label", caption = "Select " .. w.name .. " Ammo"})
+    hdr.style.font = "default-bold"
+    hdr.style.top_margin = 2
+    hdr.style.bottom_margin = 2
+
+    local flow_name = "vd_ammo_flow_" .. w.slot_index
+    local ammo_flow = ammo_container.add({type = "flow", name = flow_name, direction = "horizontal"})
+    ammo_flow.style.horizontal_spacing = 4
+    ammo_flow.style.bottom_margin = 4
+
+    local sel_for_w = pd.selected_ammos[w.slot_index] or pd.selected_ammo
+    if not helpers.has_item_in_list(w.ammos, sel_for_w) then
+      sel_for_w = #w.ammos > 0 and w.ammos[1].name or nil
+      pd.selected_ammos[w.slot_index] = sel_for_w
+    end
+
+    create_slot_buttons(ammo_flow, w.ammos, AMMO_PREFIX .. w.slot_index .. "_", sel_for_w)
+
+    if ammo_enabled ~= nil then
+      for _, child in pairs(ammo_flow.children) do
+        child.enabled = ammo_enabled
+      end
+    end
+  end
+end
+
+function M.on_distribute_toggled(player, state)
+  local pd = helpers.get_player_data(player.index)
+  pd.distribute_ammo = state
+
+  local frame = player.gui.screen[FRAME_NAME]
+  if not (frame and frame.valid) then return end
+
+  local ent_name = prototypes.item[pd.selected_vehicle] and prototypes.item[pd.selected_vehicle].place_result and prototypes.item[pd.selected_vehicle].place_result.name or pd.selected_vehicle
+  update_weapon_ammo_flows(frame, player, pd, ent_name, true)
+end
+
 function M.open(player)
   if player.gui.screen[FRAME_NAME] then
     M.close(player)
@@ -128,14 +196,9 @@ function M.open(player)
 
   local ent_name = prototypes.item[pd.selected_vehicle].place_result.name
   local fuels    = helpers.get_fuels_for_vehicle(player, ent_name)
-  local ammos    = helpers.get_ammo_for_vehicle(player, ent_name)
 
   if not helpers.has_item_in_list(fuels, pd.selected_fuel) then
     pd.selected_fuel = #fuels > 0 and fuels[1].name or nil
-  end
-
-  if not helpers.has_item_in_list(ammos, pd.selected_ammo) then
-    pd.selected_ammo = #ammos > 0 and ammos[1].name or nil
   end
 
   local frame = player.gui.screen.add({
@@ -167,7 +230,7 @@ function M.open(player)
     tooltip = "Close (Esc)",
   })
 
-  -- 1. PRESETS ROW (COMPACT DROPDOWN + PLUS BUTTON + DELETE BUTTON)
+  -- 1. PRESETS ROW
   local preset_flow = frame.add({type = "flow", name = "vd_preset_flow", direction = "horizontal"})
   preset_flow.style.vertical_align = "center"
   preset_flow.style.horizontal_spacing = 4
@@ -184,7 +247,7 @@ function M.open(player)
   })
   dropdown.style.minimal_width = 150
 
-  local add_btn = preset_flow.add({
+  preset_flow.add({
     type    = "button",
     name    = "vd_save_preset_btn",
     caption = " + ",
@@ -263,14 +326,9 @@ function M.open(player)
   sep2.style.top_margin    = 6
   sep2.style.bottom_margin = 6
 
-  -- 5. AMMO SELECTION ROW
-  local ammo_hdr = frame.add({type = "label", caption = "Select Ammo"})
-  ammo_hdr.style.font         = "default-bold"
-  ammo_hdr.style.bottom_margin = 4
-
-  local ammo_flow = frame.add({type = "flow", name = "vd_ammo_flow", direction = "horizontal"})
-  ammo_flow.style.horizontal_spacing = 4
-  create_slot_buttons(ammo_flow, ammos, AMMO_PREFIX, pd.selected_ammo)
+  -- 5. PER-WEAPON AMMO SELECTION CONTAINER
+  frame.add({type = "flow", name = "vd_ammo_container", direction = "vertical"})
+  update_weapon_ammo_flows(frame, player, pd, ent_name, true)
 
   local sep3 = frame.add({type = "line"})
   sep3.style.top_margin    = 6
@@ -322,10 +380,13 @@ function M.on_preset_selected(player, selected_index)
   pd.selected_blueprint_label = preset.blueprint_label
   pd.selected_blueprint_fuel  = preset.blueprint_fuel
   pd.selected_blueprint_ammo  = preset.blueprint_ammo
+  if preset.selected_ammos then
+    pd.selected_ammos = preset.selected_ammos
+  end
 
   if preset.vehicle then M.on_vehicle_selected(player, preset.vehicle, true) end
   if preset.fuel then M.on_fuel_selected(player, preset.fuel, true) end
-  if preset.ammo then M.on_ammo_selected(player, preset.ammo, true) end
+  if preset.ammo then M.on_ammo_selected(player, preset.ammo, nil, true) end
 
   local frame = player.gui.screen[FRAME_NAME]
   if frame and frame.valid then
@@ -362,7 +423,6 @@ function M.on_blueprint_selected(player, selected_index)
       pd.selected_blueprint_fuel  = bp.fuel
       pd.selected_blueprint_ammo  = bp.ammo
 
-      -- Always update selected vehicle to match the blueprint's vehicle item
       if bp.vehicle_item then
         pd.selected_vehicle = bp.vehicle_item
         if bp.fuel then pd.selected_fuel = bp.fuel end
@@ -371,23 +431,18 @@ function M.on_blueprint_selected(player, selected_index)
         if frame and frame.valid then
           local ent_name = prototypes.item[bp.vehicle_item] and prototypes.item[bp.vehicle_item].place_result and prototypes.item[bp.vehicle_item].place_result.name or bp.entity_name
           local fuels    = helpers.get_fuels_for_vehicle(player, ent_name)
-          local ammos    = helpers.get_ammo_for_vehicle(player, ent_name)
 
           if not helpers.has_item_in_list(fuels, pd.selected_fuel) then
             pd.selected_fuel = #fuels > 0 and fuels[1].name or nil
           end
-          if not helpers.has_item_in_list(ammos, pd.selected_ammo) then
-            pd.selected_ammo = #ammos > 0 and ammos[1].name or nil
-          end
 
           create_slot_buttons(frame.vd_vehicle_flow, helpers.get_vehicles_in_inventory(player), VEH_PREFIX, pd.selected_vehicle)
           create_slot_buttons(frame.vd_fuel_flow, fuels, FUEL_PREFIX, pd.selected_fuel)
-          create_slot_buttons(frame.vd_ammo_flow, ammos, AMMO_PREFIX, pd.selected_ammo)
+          update_weapon_ammo_flows(frame, player, pd, ent_name, true)
         end
       end
 
       if frame and frame.valid then
-        -- Lock Vehicle selection (false) but keep Fuel & Ammo active/interactable (true, true)
         set_manual_sections_enabled(frame, false, true, true)
         local deploy_btn = frame.vd_btn_row and frame.vd_btn_row.vd_deploy_btn
         if deploy_btn and deploy_btn.valid then
@@ -418,6 +473,7 @@ function M.save_current_as_preset(player)
     vehicle         = pd.selected_vehicle,
     fuel            = pd.selected_fuel,
     ammo            = pd.selected_ammo,
+    selected_ammos  = pd.selected_ammos,
     equipment_grid  = pd.selected_blueprint_grid,
     color           = pd.selected_color,
     blueprint_label = pd.selected_blueprint_label,
@@ -477,18 +533,13 @@ function M.on_vehicle_selected(player, vehicle_name, from_preset)
 
   local ent_name = prototypes.item[vehicle_name] and prototypes.item[vehicle_name].place_result and prototypes.item[vehicle_name].place_result.name or vehicle_name
   local fuels    = helpers.get_fuels_for_vehicle(player, ent_name)
-  local ammos    = helpers.get_ammo_for_vehicle(player, ent_name)
 
   if not helpers.has_item_in_list(fuels, pd.selected_fuel) then
     pd.selected_fuel = #fuels > 0 and fuels[1].name or nil
   end
 
-  if not helpers.has_item_in_list(ammos, pd.selected_ammo) then
-    pd.selected_ammo = #ammos > 0 and ammos[1].name or nil
-  end
-
   create_slot_buttons(frame.vd_fuel_flow, fuels, FUEL_PREFIX, pd.selected_fuel)
-  create_slot_buttons(frame.vd_ammo_flow, ammos, AMMO_PREFIX, pd.selected_ammo)
+  update_weapon_ammo_flows(frame, player, pd, ent_name, true)
 end
 
 function M.on_fuel_selected(player, fuel_name, from_preset)
@@ -507,20 +558,22 @@ function M.on_fuel_selected(player, fuel_name, from_preset)
   end
 end
 
-function M.on_ammo_selected(player, ammo_name, from_preset)
+function M.on_ammo_selected(player, ammo_name, slot_index, from_preset)
   local pd = helpers.get_player_data(player.index)
   pd.selected_ammo = ammo_name
+
+  if not pd.selected_ammos then pd.selected_ammos = {} end
+  if slot_index then
+    pd.selected_ammos[slot_index] = ammo_name
+  end
 
   local frame = player.gui.screen[FRAME_NAME]
   if not (frame and frame.valid) then return end
 
   if not from_preset then reset_preset_to_custom(frame, pd) end
 
-  for _, child in pairs(frame.vd_ammo_flow.children) do
-    if string.sub(child.name, 1, #AMMO_PREFIX) == AMMO_PREFIX then
-      child.toggled = (string.sub(child.name, #AMMO_PREFIX + 1) == ammo_name)
-    end
-  end
+  local ent_name = prototypes.item[pd.selected_vehicle] and prototypes.item[pd.selected_vehicle].place_result and prototypes.item[pd.selected_vehicle].place_result.name or pd.selected_vehicle
+  update_weapon_ammo_flows(frame, player, pd, ent_name, true)
 end
 
 M.FRAME_NAME = FRAME_NAME
