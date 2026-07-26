@@ -320,11 +320,14 @@ function M.on_blueprint_selected(player, selected_index)
       pd.selected_color           = bp.color
       pd.selected_blueprint_label = bp.label
 
-      -- Auto-select matching vehicle item if present in player inventory
-      if bp.vehicle_item and helpers.has_vehicle(player, bp.vehicle_item) then
+      -- Always update selected vehicle to match the blueprint's vehicle item
+      if bp.vehicle_item then
         pd.selected_vehicle = bp.vehicle_item
+        if bp.fuel then pd.selected_fuel = bp.fuel end
+        if bp.ammo then pd.selected_ammo = bp.ammo end
+
         if frame and frame.valid then
-          local ent_name = prototypes.item[bp.vehicle_item].place_result.name
+          local ent_name = prototypes.item[bp.vehicle_item] and prototypes.item[bp.vehicle_item].place_result and prototypes.item[bp.vehicle_item].place_result.name or bp.entity_name
           local fuels    = helpers.get_fuels_for_vehicle(player, ent_name)
           local ammos    = helpers.get_ammo_for_vehicle(player, ent_name)
 
@@ -418,7 +421,7 @@ function M.on_vehicle_selected(player, vehicle_name)
     end
   end
 
-  local ent_name = prototypes.item[vehicle_name].place_result.name
+  local ent_name = prototypes.item[vehicle_name] and prototypes.item[vehicle_name].place_result and prototypes.item[vehicle_name].place_result.name or vehicle_name
   local fuels    = helpers.get_fuels_for_vehicle(player, ent_name)
   local ammos    = helpers.get_ammo_for_vehicle(player, ent_name)
 

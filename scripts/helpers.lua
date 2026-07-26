@@ -163,12 +163,38 @@ function M.extract_blueprint_vehicle_data(target)
     end
   end
 
+  local bp_fuel = nil
+  local bp_ammo = nil
+
+  if veh_ent.items then
+    for item_key, item_val in pairs(veh_ent.items) do
+      local item_name = item_key
+      if type(item_key) == "number" and type(item_val) == "table" then
+        item_name = (item_val.id and item_val.id.name) or item_val.name
+      end
+
+      if type(item_name) == "string" then
+        local item_proto = prototypes.item[item_name]
+        if item_proto then
+          if item_proto.fuel_category and not bp_fuel then
+            bp_fuel = item_name
+          end
+          if item_proto.type == "ammo" and not bp_ammo then
+            bp_ammo = item_name
+          end
+        end
+      end
+    end
+  end
+
   return {
     label          = label,
     entity_name    = veh_ent.name,
     vehicle_item   = vehicle_item_name,
     equipment_grid = equipment_list,
     color          = veh_ent.color,
+    fuel           = bp_fuel,
+    ammo           = bp_ammo,
   }
 end
 

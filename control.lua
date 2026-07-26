@@ -14,7 +14,7 @@ script.on_event("quick-drive-action", function(event)
   local pd = helpers.get_player_data(player.index)
 
   if player.vehicle then
-    if pd.deployed_vehicle_unit_number and player.vehicle.unit_number == pd.deployed_vehicle_unit_number then
+    if not pd.deployed_vehicle_unit_number or player.vehicle.unit_number == pd.deployed_vehicle_unit_number then
       gui.close(player)
       vehicle.undeploy(player)
     else
@@ -25,10 +25,27 @@ script.on_event("quick-drive-action", function(event)
 
   if gui.is_open(player) then gui.close(player) end
 
+  -- Auto-select vehicle or blueprint if nothing is currently selected
+  if not pd.selected_vehicle then
+    local bps = helpers.get_qdrive_blueprints(player)
+    if #bps > 0 then
+      local bp = bps[1]
+      pd.selected_vehicle          = bp.vehicle_item
+      pd.selected_blueprint_grid  = bp.equipment_grid
+      pd.selected_color           = bp.color
+      pd.selected_blueprint_label = bp.label
+    else
+      local vehicles = helpers.get_vehicles_in_inventory(player)
+      if #vehicles > 0 then
+        pd.selected_vehicle = vehicles[1].name
+      end
+    end
+  end
+
   if pd.selected_vehicle then
     vehicle.deploy(player, pd.selected_vehicle, pd.selected_fuel)
   else
-    player.print("[QuickDrive] No vehicle selected.")
+    player.print("[QuickDrive] No deployable vehicle or [qdrive] blueprint found in inventory. Press Ctrl+Shift+V to configure.")
   end
 end)
 
