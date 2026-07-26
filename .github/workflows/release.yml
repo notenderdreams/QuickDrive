@@ -29,9 +29,18 @@ jobs:
         run: |
           DIR_NAME="${{ steps.mod_info.outputs.dir_name }}"
           ZIP_NAME="${{ steps.mod_info.outputs.zip_name }}"
+          MOD_VERSION="${{ steps.mod_info.outputs.version }}"
           
           mkdir -p "dist/${DIR_NAME}"
-          rsync -av --exclude='.git*' --exclude='.github' --exclude='.DS_Store' --exclude='dist' ./ "dist/${DIR_NAME}/"
+          rsync -av --exclude='.git*' --exclude='.github' --exclude='.DS_Store' --exclude='dist' --exclude='assets' ./ "dist/${DIR_NAME}/"
+          
+          # Generate minimal release README inside the mod zip package pointing to main repo
+          cat << EOF > "dist/${DIR_NAME}/README.md"
+          # QuickDrive (v${MOD_VERSION})
+
+          > **Note:** This \`README.md\` was generated during release packaging to skip heavy images and keep the mod download size minimal. For full documentation, screenshots, and visual instruction diagrams, please visit the main repository:
+          > 🔗 **[https://github.com/notenderdreams/QuickDrive](https://github.com/notenderdreams/QuickDrive)**
+          EOF
           
           cd dist
           zip -r "../${ZIP_NAME}" "${DIR_NAME}"
