@@ -323,9 +323,14 @@ function M.on_preset_selected(player, selected_index)
   pd.selected_blueprint_fuel  = preset.blueprint_fuel
   pd.selected_blueprint_ammo  = preset.blueprint_ammo
 
-  if preset.vehicle then M.on_vehicle_selected(player, preset.vehicle) end
-  if preset.fuel then M.on_fuel_selected(player, preset.fuel) end
-  if preset.ammo then M.on_ammo_selected(player, preset.ammo) end
+  if preset.vehicle then M.on_vehicle_selected(player, preset.vehicle, true) end
+  if preset.fuel then M.on_fuel_selected(player, preset.fuel, true) end
+  if preset.ammo then M.on_ammo_selected(player, preset.ammo, true) end
+
+  local frame = player.gui.screen[FRAME_NAME]
+  if frame and frame.valid then
+    update_preset_dropdown(frame, pd)
+  end
 end
 
 function M.on_blueprint_selected(player, selected_index)
@@ -455,14 +460,14 @@ local function reset_preset_to_custom(frame, pd)
   end
 end
 
-function M.on_vehicle_selected(player, vehicle_name)
+function M.on_vehicle_selected(player, vehicle_name, from_preset)
   local pd = helpers.get_player_data(player.index)
   pd.selected_vehicle = vehicle_name
 
   local frame = player.gui.screen[FRAME_NAME]
   if not (frame and frame.valid) then return end
 
-  reset_preset_to_custom(frame, pd)
+  if not from_preset then reset_preset_to_custom(frame, pd) end
 
   for _, child in pairs(frame.vd_vehicle_flow.children) do
     if string.sub(child.name, 1, #VEH_PREFIX) == VEH_PREFIX then
@@ -486,14 +491,14 @@ function M.on_vehicle_selected(player, vehicle_name)
   create_slot_buttons(frame.vd_ammo_flow, ammos, AMMO_PREFIX, pd.selected_ammo)
 end
 
-function M.on_fuel_selected(player, fuel_name)
+function M.on_fuel_selected(player, fuel_name, from_preset)
   local pd = helpers.get_player_data(player.index)
   pd.selected_fuel = fuel_name
 
   local frame = player.gui.screen[FRAME_NAME]
   if not (frame and frame.valid) then return end
 
-  reset_preset_to_custom(frame, pd)
+  if not from_preset then reset_preset_to_custom(frame, pd) end
 
   for _, child in pairs(frame.vd_fuel_flow.children) do
     if string.sub(child.name, 1, #FUEL_PREFIX) == FUEL_PREFIX then
@@ -502,14 +507,14 @@ function M.on_fuel_selected(player, fuel_name)
   end
 end
 
-function M.on_ammo_selected(player, ammo_name)
+function M.on_ammo_selected(player, ammo_name, from_preset)
   local pd = helpers.get_player_data(player.index)
   pd.selected_ammo = ammo_name
 
   local frame = player.gui.screen[FRAME_NAME]
   if not (frame and frame.valid) then return end
 
-  reset_preset_to_custom(frame, pd)
+  if not from_preset then reset_preset_to_custom(frame, pd) end
 
   for _, child in pairs(frame.vd_ammo_flow.children) do
     if string.sub(child.name, 1, #AMMO_PREFIX) == AMMO_PREFIX then

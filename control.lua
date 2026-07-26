@@ -18,7 +18,7 @@ script.on_event("quick-drive-action", function(event)
       gui.close(player)
       vehicle.undeploy(player)
     else
-      player.print("[QuickDrive] Vehicle was not deployed by QuickDrive. Use F to exit.")
+      player.print("[QuickDrive] Vehicle was not deployed by QuickDrive.")
     end
     return
   end
@@ -45,7 +45,7 @@ script.on_event("quick-drive-action", function(event)
   if pd.selected_vehicle then
     vehicle.deploy(player, pd.selected_vehicle, pd.selected_fuel)
   else
-    player.print("[QuickDrive] No deployable vehicle or [qdrive] blueprint found in inventory. Press Ctrl+Shift+V to configure.")
+    player.print("[QuickDrive] QuickDrive is not configured. Press Ctrl+Shift+V to configure.")
   end
 end)
 
